@@ -8,6 +8,7 @@ extends Control
 const VivRenderer := preload("res://addons/vivarium/render/viv_renderer.gd")
 const VivPalette := preload("res://addons/vivarium/ui/viv_palette.gd")
 const CREATURES_DIR := "res://creatures"
+const SCENARIOS_DIR := "user://scenarios"
 const POLL_INTERVAL := 0.25
 
 var _registry := VivCreatureRegistry.new()
@@ -19,6 +20,7 @@ var _list: ItemList
 var _status: RichTextLabel
 var _play_btn: CheckButton
 var _mode_btn: OptionButton
+var _tunables_box: VBoxContainer
 var _sub: SubViewport
 var _bg: ColorRect
 var _renderer: VivRenderer
@@ -118,6 +120,20 @@ func _build_ui() -> void:
 	main.add_child(_status)
 	_update_status()
 
+	# Right — inspector: live @export_range tunables (§5) + scenario persistence.
+	var insp := VBoxContainer.new()
+	insp.custom_minimum_size = Vector2(210, 0)
+	insp.add_theme_constant_override("separation", 4)
+	root.add_child(insp)
+	insp.add_child(_header("INSPECTOR"))
+	_tunables_box = VBoxContainer.new()
+	_tunables_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	insp.add_child(_tunables_box)
+	var scn_bar := HBoxContainer.new()
+	insp.add_child(scn_bar)
+	_add_button(scn_bar, "Save scn", _save_scenario)
+	_add_button(scn_bar, "Load scn", func(): _apply_scenario(_current_path); _rebuild_inspector())
+
 func _add_button(parent: Control, text: String, cb: Callable) -> void:
 	var b := Button.new()
 	b.text = text
@@ -157,9 +173,51 @@ func _select_entry(idx: int) -> void:
 	if idx < 0 or idx >= _entries.size():
 		return
 	_current_path = _entries[idx]["path"]
+	_apply_scenario(_current_path)  # restores saved terrain/gravity/tunables if present
 	if _runner.load_script(_current_path, true):
 		_runner.spawn(1)
+	_rebuild_inspector()
 	_update_status()
+
+func _scenario_path(creature_path: String) -> String:
+	return SCENARIOS_DIR + "/" + creature_path.get_file().get_basename() + ".json"
+
+func _apply_scenario(creature_path: String) -> void:
+	var p := _scenario_path(creature_path)
+	if FileAccess.file_exists(p):
+		VivScenario.apply(_runner, VivScenario.load_from(p))
+
+func _save_scenario() -> void:
+	if _current_path == "":
+		return
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SCENARIOS_DIR))
+	VivScenario.save(VivScenario.capture(_runner, _current_path), _scenario_path(_current_path))
+
+func _rebuild_inspector() -> void:
+	if _tunables_box == null:
+		return
+	for c in _tunables_box.get_children():
+		c.queue_free()
+	if _runner.creature == null:
+		return
+	for t in VivInspector.list_tunables(_runner.creature):
+		var name: String = t["name"]
+		var row := VBoxContainer.new()
+		var lbl := Label.new()
+		lbl.text = name
+		lbl.add_theme_color_override("font_color", VivPalette.UI_TEXT_DIM)
+		row.add_child(lbl)
+		var sl := HSlider.new()
+		sl.min_value = t["min"]; sl.max_value = t["max"]; sl.step = t["step"]
+		sl.value = t["value"]
+		var val := Label.new()
+		val.text = "%.2f" % float(t["value"])
+		sl.value_changed.connect(func(v: float):
+			_runner.set_tunable(name, v)
+			val.text = "%.2f" % v)
+		row.add_child(sl)
+		row.add_child(val)
+		_tunables_box.add_child(row)
 
 func _reload_current() -> void:
 	if _current_path == "":

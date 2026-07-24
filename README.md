@@ -79,8 +79,9 @@ They write PNGs to `test/out/`; sample renders are committed in [docs/images/](d
 - **Phase 3** — renderer: mesh/layers, low-res + point upscale, view modes, replay ✅
 - **Phase 4** — limbs & gaits: two-bone IK, phase-based gait, ground-seeking grips ✅
 - **Phase 6** — validators (§7.1) + motion metrics (§7.2), caught-and-localized ✅
+- **Phase 5 (substance)** — live tunables inspector, scenario save/load, multi-instance ✅
 - **Phase 7 (tool surface)** — agent operations: read/write+diff, run/validate/measure, diff_runs ✅
-- **Phase 5** — full UI polish (inspector, scenarios, terrain sketch) — pending user
+- **Phase 5 (polish)** — full layout, terrain-sketch tool, A/B panel, side-by-side sign-off — pending user
 - **Phase 7 (LLM loop)** + **Phase 8** (polish) — pending
 
 _(Phases 5's visual approval and 7's LLM critique loop are best done with the user; the

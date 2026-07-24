@@ -23,7 +23,7 @@ Write-Host "Building class cache..."
 Invoke-Godot @("--headless", "--import") | Out-Null
 
 $fails = 0
-foreach ($h in @("phase1", "phase2", "phase3", "phase4", "phase6", "phase7")) {
+foreach ($h in @("phase1", "phase2", "phase3", "phase4", "phase5", "phase6", "phase7")) {
     $r = Invoke-Godot @("--headless", "--path", ".", "--script", "res://test/${h}_harness.gd")
     $line = ($r.Out -split "`n" | Select-String "RESULT" | Select-Object -First 1)
     "{0,-8} exit={1}  {2}" -f $h, $r.Code, ("$line").Trim()

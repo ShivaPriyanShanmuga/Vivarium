@@ -7,11 +7,14 @@ extends VivCreature
 ## of running the physics solver. All chunks pinned so the solver never disturbs them; feet
 ## + body are in `chunks`, so determinism-hashing and render interpolation cover the gait.
 
-const WALK_SPEED := 26.0
-const RIDE_HEIGHT := 22.0
-const STRIDE := 30.0        # body distance per gait cycle
 const THIGH := 15.0
 const SHIN := 15.0
+
+# Live tunables (§5 inspector): @export_range vars used each tick, so editing them retunes
+# the running instance without a reload.
+@export_range(0.0, 80.0, 0.5) var walk_speed := 26.0
+@export_range(6.0, 40.0, 0.5) var ride_height := 22.0
+@export_range(12.0, 60.0, 0.5) var stride := 30.0  # body distance per gait cycle
 
 var body: VivChunk
 var limbs: Array[VivLimb] = []
@@ -45,11 +48,11 @@ func init(_w: VivWorld) -> void:
 
 func tick(dt: float) -> void:
 	var terr := world.terrain
-	body.pos.x += walk_dir.x * WALK_SPEED * dt
+	body.pos.x += walk_dir.x * walk_speed * dt
 	var g: float = terr.ground_y(body.pos.x, body.pos.y - 120.0) if terr != null else INF
-	var target_y: float = (g - RIDE_HEIGHT) if g < INF else body.pos.y
+	var target_y: float = (g - ride_height) if g < INF else body.pos.y
 	body.pos.y = lerpf(body.pos.y, target_y, 0.25)
-	cycle = fposmod(cycle + (WALK_SPEED * dt) / STRIDE, 1.0)
+	cycle = fposmod(cycle + (walk_speed * dt) / maxf(1.0, stride), 1.0)
 	for limb in limbs:
 		limb.update(body.pos, walk_dir, terr, cycle)
 

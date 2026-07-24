@@ -374,12 +374,31 @@ through the surface; `diff_runs` surfaces a +260 distance delta. All prior harne
 
 ---
 
-## Not yet done (needs the user)
+## Phase 5 (substance) — live tunables, scenarios, multi-instance (done)
 
-- **Phase 5 (full UI):** the loop, live viewport, view modes, transport basics, and the
-  validator readout exist in the editor tab, but the §5 layout polish (inspector with live
-  tunables, terrain sketch tool, saved scenarios, multi-instance herd, A/B panel) and the
-  **user-approved side-by-side** acceptance remain.
+The testable core of the §5 UI features (full layout polish + the user-approved side-by-side
+gate still pending):
+
+- **Live tunables** — creatures expose `@export_range` vars (quadruped: `walk_speed`,
+  `ride_height`, `stride`). `VivInspector.list_tunables/set_tunable` reads/writes them;
+  `VivCreatureRunner.tunables` overrides are **re-applied after every respawn** so a tweak
+  survives hot reload. Inspector sliders wired into the editor's right panel — editing
+  retunes the running instance with no reload.
+- **Scenarios** — `VivScenario.capture/apply/save/load_from` persists
+  creature+seed+gravity+terrain+tunables as JSON (editor: Save/Load buttons →
+  `user://scenarios/<creature>.json`, auto-restored on select → survives restarts).
+- **Multi-instance** — `VivHerd.spawn(path,count,base_seed,…)` + `step_all[_timed]`.
+
+**Acceptance (substance) — PASS** (`test/phase5_harness.gd`): tunables listed
+[walk_speed, ride_height, stride], a live change speeds the gait (550 vs 260 over 400 ticks)
+and **persists across respawn**; scenario save→load round-trips gravity/terrain/tunables/
+creature; a 5-instance herd is finite, **varies per seed**, and is **deterministic per seed**.
+All 7 harnesses green; editor clean.
+
+## Still pending (needs the user)
+
+- **Phase 5 remainder:** full §5 layout polish, terrain-sketch drawing tool, A/B snapshot
+  panel, and the **user-approved side-by-side** acceptance against the reference frames.
 - **Phase 7 (agent):** the LLM/VLM critique loop (§6.3–6.4), exemplar-library packaging, edit
   log UI, and end-to-end acceptance (IoU > 0.75 / contact timing within 8% unaided).
 - **Phase 8 (polish):** snapshot A/B UI, replay scrubbing UI, perf budgets surfaced,

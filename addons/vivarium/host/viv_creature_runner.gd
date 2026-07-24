@@ -18,6 +18,10 @@ var seed := 0
 var terrain: VivTerrain = null
 var gravity := Vector2(0.0, 40.0)
 
+## Live tunable overrides (name -> value), re-applied after every (re)spawn so a tweak
+## survives hot reload (§5). Set via set_tunable().
+var tunables: Dictionary = {}
+
 ## Load (or reload) the creature script from disk. `fresh` compiles a standalone GDScript
 ## from the file text, bypassing Godot's ResourceLoader AND GDScript compile caches so an
 ## on-disk edit actually takes effect (CACHE_MODE_REPLACE alone returns the cached compile).
@@ -51,8 +55,18 @@ func spawn(seed_value: int) -> bool:
 		return false
 	creature = inst
 	creature.setup(world, seed_value)
+	# Re-apply live tunable overrides so tweaks survive respawn (§5).
+	for k in tunables:
+		if k in creature:
+			creature.set(k, tunables[k])
 	clock.reset()
 	return true
+
+## Set a live tunable on the running instance and remember it across respawns.
+func set_tunable(name: String, value) -> void:
+	tunables[name] = value
+	if creature != null and name in creature:
+		creature.set(name, value)
 
 ## Run exactly `n` fixed ticks. store_last BEFORE tick so draw() can interpolate (§2).
 func step(n: int) -> void:
