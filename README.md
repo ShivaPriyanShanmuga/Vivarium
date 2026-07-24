@@ -42,13 +42,34 @@ seeded per-instance RNG for determinism, integer sort keys (no depth buffer).
 
 ## Running the tests
 
+No desktop app needed — Godot 4.7 is installed as a CLI (on your PATH via winget). Run
+**all** headless harnesses with one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\run_tests.ps1   # PowerShell
+```
 ```bash
-godot --headless --import                                   # build the class cache once
-godot --headless --path . --script res://test/phase1_harness.gd
+bash tools/run_tests.sh                                        # Git Bash
 ```
 
-Phase 1 acceptance: identical seeds hash identically, and a source edit respawns the
-creature in under 300 ms (measured ~5 ms).
+Expected: `ALL PASS` (phases 1, 2, 3, 4, 6, 7). Each harness exits 0 on success.
+Override the binary with `GODOT=/path/to/godot` (env var) if it isn't on PATH.
+
+To run one phase directly:
+
+```bash
+godot --headless --import                                      # build the class cache once
+godot --headless --path . --script res://test/phase4_harness.gd
+```
+
+**Visual checks** (Godot can't rasterize headless here, so these open a brief window):
+
+```bash
+godot --path . --script res://test/render_creature.gd          # serpent, all view modes
+godot --path . --script res://test/render_gait.gd              # quadruped walk cycle
+```
+
+They write PNGs to `test/out/`; sample renders are committed in [docs/images/](docs/images/).
 
 ## Status
 
