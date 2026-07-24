@@ -111,3 +111,76 @@ palette: `docs/ui-reference.md`. Sampling scripts: `scratchpad/sample_palette.py
 - Whether Vivarium is a **Godot editor main-screen plugin** (custom workspace tab inside
   the Godot editor) vs a **standalone Godot app** that watches the project — leaning
   editor-plugin per §3, to confirm.
+
+### User decisions (2026-07-24) — resolved
+
+- **Tool form:** **Godot editor main-screen plugin** (`EditorPlugin` with a custom
+  workspace tab; creature rendered in a `SubViewport`). Aseprite chrome applied within the
+  editor via a theme on our own controls.
+- **Project setup:** **Greenfield** — this repo is the Godot 4.7 project; creatures live in
+  a watched `creatures/` dir (path configurable to point at a game repo later).
+
+### VERIFIED — Godot 4.7 API smoke test (`test/smoke.gd`, headless)
+
+Target engine **4.7.stable.official** (installed, on PATH). Confirmed by running
+`godot --headless --path . --script res://test/smoke.gd`:
+
+- `RandomNumberGenerator`: same `seed` → identical `randf()` sequence; `state` get/set
+  save-restores mid-stream → determinism + snapshot/replay both viable.
+- `FileAccess.get_modified_time(path)` returns a unix mtime **but needs an absolute path**
+  (`ProjectSettings.globalize_path(res://…)`), not a `res://` path → file watcher polls
+  globalized paths.
+- `DirAccess.open` + `list_dir_begin/get_next` for discovery.
+- `Time.get_ticks_usec()` for the <300 ms respawn budget.
+- `load(path).new()` + `has_method` for dynamic creature loading (hot reload).
+- **`PackedByteArray` has no `.hash()`** → state hasher uses `HashingContext` **SHA-256**
+  (stable across runs), hex-encoded. Global `hash(Variant)` exists as a fast in-run hash.
+
+---
+
+## Phase 1 — Host and harness (done)
+
+**Structure** (greenfield Godot 4.7 project, editor-plugin form):
+
+- `runtime/` — **vivarium-runtime** (ships in the game too, §11): the creature contract
+  `VivCreature` (init/tick/draw/apply_palette), `VivChunk`, `VivWorld`, `VivRng` (seeded
+  PCG32), `VivSimClock` (40 TPS fixed tick + `time_stacker` interpolation alpha),
+  `VivDrawContext` (Phase-3 stub with fixed signatures), `VivHasher` (SHA-256 state hash).
+- `addons/vivarium/host/` — `VivCreatureRegistry` (discovers scripts whose base chain is
+  VivCreature), `VivFileWatcher` (mtime polling → added/changed/removed), `VivCreatureRunner`
+  (spawn / fixed-step / timed hot reload / `assert_draw_pure`).
+- `addons/vivarium/` — `plugin.gd` main-screen EditorPlugin + `ui/viv_main_screen.gd`
+  minimal shell + `ui/viv_palette.gd` (Phase-0 sampled colors as typed constants).
+- `creatures/test_blob.gd` — Phase 1 exemplar (deterministic 3-chunk blob).
+- `test/` — `smoke.gd` (API verify), `phase1_harness.gd` (acceptance).
+
+**Design notes / gotchas found:**
+
+- `var script` collides with `Object.script` (reserved) → runner member is `creature_script`.
+- **Hot reload:** `ResourceLoader.load(path, CACHE_MODE_REPLACE)` returns the *cached* GDScript
+  compile, so on-disk edits don't show. Robust fix: read file text →
+  `GDScript.new(); gd.source_code = text; gd.reload()` — bypasses both the resource and the
+  GDScript compile caches. Probes use path-based `extends "res://runtime/viv_creature.gd"`
+  so they compile without the global class cache.
+- **Headless class_name resolution** needs the global class cache: run `godot --headless
+  --import` once before `--script` harnesses.
+- `store_last_positions()` is called by the runner *before* each `tick()` so `draw()` can
+  `lerp(last_pos, pos, time_stacker)` — tick/render separation is built in from the start.
+- `ref/.gdignore` added so Godot's importer skips the reference frames.
+
+**Acceptance — PASS** (`godot --headless --path . --script res://test/phase1_harness.gd`):
+
+| Check | Result |
+|---|---|
+| Same seed → same hash (500 ticks) | ✅ |
+| Different seed → different hash | ✅ |
+| 300-tick per-tick trace identical across runs | ✅ |
+| `draw()` leaves sim state unchanged (§2) | ✅ |
+| On-disk edit (2→4 chunks) reflected on reload | ✅ |
+| Respawn time | ✅ **5.1 ms** (budget 300 ms) |
+| Watcher detects changed file | ✅ |
+| Registry discovers creatures / rejects non-creatures | ✅ |
+
+Editor loads the plugin with no script errors (`--headless --editor`). Next: **Phase 2**
+(Verlet + distance/flex constraints + swept-circle terrain; settle a dropped creature over
+10,000 ticks without exploding).

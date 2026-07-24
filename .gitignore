@@ -10,6 +10,12 @@ __pycache__/
 venv/
 env/
 
+# Godot
+.godot/
+*.uid
+.import/
+export_presets.cfg
+
 # Node
 node_modules/
 dist/
