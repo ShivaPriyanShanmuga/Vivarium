@@ -87,6 +87,14 @@ func simulate(dt: float) -> void:
 	var iters := world.solver_iterations if world != null else 8
 	VivSolver.step(self, world, dt, iters)
 
+## Extra per-instance state beyond chunks/rng for snapshot & deterministic replay (§4.4).
+## Override in creatures that keep animated quantities (limb phases, timers, etc.).
+func capture_state() -> Dictionary:
+	return {}
+
+func restore_state(_state: Dictionary) -> void:
+	pass
+
 ## Copy pos -> last_pos for every chunk. The host calls this immediately BEFORE tick(),
 ## so draw() can interpolate between the previous and current tick (§2).
 func store_last_positions() -> void:

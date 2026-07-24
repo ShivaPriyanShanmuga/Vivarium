@@ -34,3 +34,7 @@ Thumbs.db
 *.log
 tmp/
 scratch/
+
+# Phase 3 render outputs (windowed harness) and probes
+test/out/
+test/_*.png

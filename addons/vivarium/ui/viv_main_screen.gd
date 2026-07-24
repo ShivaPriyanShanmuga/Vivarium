@@ -1,21 +1,28 @@
 @tool
 extends Control
-## Phase 1 shell for the Vivarium workspace tab. Proves the code<->motion loop in-editor:
-## discover creatures in the watched dir, select one, run it at the fixed tick rate, and
-## hot-reload on save. The real §5 layout (large viewport, inspector, agent/console strip,
-## view modes, transport) is Phase 5 — this is deliberately minimal but functional.
+## Vivarium workspace tab. Phase 1 wired the code<->motion loop; Phase 3 adds the live
+## viewport: creatures render into a low-res SubViewport (point-upscaled for the lo-fi look,
+## §4.2) with selectable view modes (§4.3) and transport (§4.4). The full §5 layout
+## (inspector, agent/console strip, terrain sketch) is Phase 5 — this stays deliberately lean.
 
+const VivRenderer := preload("res://addons/vivarium/render/viv_renderer.gd")
 const VivPalette := preload("res://addons/vivarium/ui/viv_palette.gd")
 const CREATURES_DIR := "res://creatures"
-const POLL_INTERVAL := 0.25  # seconds between watcher polls
+const POLL_INTERVAL := 0.25
 
 var _registry := VivCreatureRegistry.new()
 var _watcher := VivFileWatcher.new()
 var _runner := VivCreatureRunner.new()
+var _ctx := VivDrawContext.new()
 
 var _list: ItemList
 var _status: RichTextLabel
 var _play_btn: CheckButton
+var _mode_btn: OptionButton
+var _sub: SubViewport
+var _bg: ColorRect
+var _renderer: VivRenderer
+
 var _entries: Array = []
 var _current_path := ""
 var _active := false
@@ -24,6 +31,14 @@ var _last_respawn_ms := 0.0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ctx.palette = VivPaletteRamps.default_creature()
+	# A default room: gravity + a floor far below, so dropped creatures settle in view
+	# while the pinned-root serpent still hangs freely above it.
+	_runner.gravity = Vector2(0.0, 40.0)
+	var floor := VivTerrain.new()
+	floor.add_floor(90.0, -400.0, 400.0)
+	floor.friction = 0.5
+	_runner.terrain = floor
 	_build_ui()
 	_watcher.file_changed.connect(_on_file_changed)
 	_watcher.file_added.connect(func(_p): _refresh_list())
@@ -32,7 +47,6 @@ func _ready() -> void:
 	_refresh_list()
 	set_process(true)
 
-## Called by the plugin when the tab is shown/hidden — gate work to when visible.
 func set_active(active: bool) -> void:
 	_active = active
 
@@ -47,9 +61,9 @@ func _build_ui() -> void:
 	root.add_theme_constant_override("separation", 1)
 	add_child(root)
 
-	# Left rail — creature list (selection is global state, §5).
+	# Left rail — creature list.
 	var rail := VBoxContainer.new()
-	rail.custom_minimum_size = Vector2(220, 0)
+	rail.custom_minimum_size = Vector2(200, 0)
 	root.add_child(rail)
 	rail.add_child(_header("CREATURES"))
 	_list = ItemList.new()
@@ -57,7 +71,7 @@ func _build_ui() -> void:
 	_list.item_selected.connect(_on_list_selected)
 	rail.add_child(_list)
 
-	# Centre/right — transport + status (viewport placeholder until Phase 3).
+	# Centre — transport + live viewport.
 	var main := VBoxContainer.new()
 	main.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_child(main)
@@ -68,31 +82,46 @@ func _build_ui() -> void:
 	_play_btn = CheckButton.new()
 	_play_btn.text = "Play"
 	bar.add_child(_play_btn)
-	var reload_btn := Button.new()
-	reload_btn.text = "Reload"
-	reload_btn.pressed.connect(_reload_current)
-	bar.add_child(reload_btn)
-	var step_btn := Button.new()
-	step_btn.text = "Step"
-	step_btn.pressed.connect(func(): if _runner.creature: _runner.step(1); _update_status())
-	bar.add_child(step_btn)
+	_add_button(bar, "Step", func(): if _runner.creature: _runner.step(1))
+	_add_button(bar, "Reload", _reload_current)
+	_mode_btn = OptionButton.new()
+	for name in ["Shaded", "Wireframe", "Chunks", "Skeleton", "Overdraw"]:
+		_mode_btn.add_item(name)
+	_mode_btn.item_selected.connect(func(i: int): if _renderer: _renderer.mode = i)
+	bar.add_child(_mode_btn)
 
-	var viewport_placeholder := ColorRect.new()
-	viewport_placeholder.color = VivPalette.ROOM_STONE_LIGHT.darkened(0.55)
-	viewport_placeholder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	viewport_placeholder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main.add_child(viewport_placeholder)
-	var vp_label := Label.new()
-	vp_label.text = "  viewport — Phase 3"
-	vp_label.modulate = VivPalette.UI_TEXT_DIM
-	viewport_placeholder.add_child(vp_label)
+	# Low-res SubViewport, point-upscaled by the container (§4.2).
+	var svc := SubViewportContainer.new()
+	svc.stretch = true
+	svc.stretch_shrink = 3
+	svc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	svc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main.add_child(svc)
+	_sub = SubViewport.new()
+	_sub.transparent_bg = false
+	_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	svc.add_child(_sub)
+	_bg = ColorRect.new()
+	_bg.color = VivPalette.ROOM_STONE_LIGHT.darkened(0.55)
+	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sub.add_child(_bg)
+	_renderer = VivRenderer.new()
+	_renderer.context = _ctx
+	_sub.add_child(_renderer)
 
 	_status = RichTextLabel.new()
-	_status.custom_minimum_size = Vector2(0, 110)
+	_status.custom_minimum_size = Vector2(0, 92)
 	_status.bbcode_enabled = true
 	_status.add_theme_color_override("default_color", VivPalette.UI_TEXT)
 	main.add_child(_status)
 	_update_status()
+
+func _add_button(parent: Control, text: String, cb: Callable) -> void:
+	var b := Button.new()
+	b.text = text
+	b.pressed.connect(cb)
+	parent.add_child(b)
 
 func _header(text: String) -> Label:
 	var l := Label.new()
@@ -107,7 +136,6 @@ func _refresh_list() -> void:
 	_list.clear()
 	for e in _entries:
 		_list.add_item(e["name"])
-	# Keep current selection alive, else select the first.
 	var idx := _index_of(_current_path)
 	if idx < 0 and _entries.size() > 0:
 		idx = 0
@@ -139,7 +167,6 @@ func _reload_current() -> void:
 	_update_status()
 
 func _on_file_changed(path: String) -> void:
-	# Any change to a creature refreshes discovery; a change to the live one respawns it.
 	if path == _current_path:
 		_last_respawn_ms = _runner.reload_and_respawn()
 		_update_status()
@@ -155,7 +182,38 @@ func _process(delta: float) -> void:
 		_watcher.poll()
 	if _play_btn and _play_btn.button_pressed and _runner.creature:
 		_runner.advance(delta)
-		_update_status()
+	_render_frame()
+
+func _render_frame() -> void:
+	if _renderer == null or _runner.creature == null:
+		return
+	var ts := _runner.clock.time_stacker
+	_ctx.clear()
+	_runner.creature.draw(_ctx, ts)
+	_renderer.context = _ctx
+	_renderer.creature = _runner.creature
+	_renderer.time_stacker = ts
+	# Fit creature bounds into the low-res viewport.
+	var b := _bounds()
+	var bmin: Vector2 = b[0]
+	var bmax: Vector2 = b[1]
+	var span := (bmax - bmin).max(Vector2(1, 1))
+	var vp := Vector2(_sub.size)
+	var scale := minf(vp.x / span.x, vp.y / span.y) * 0.82
+	var wc := (bmin + bmax) * 0.5
+	_renderer.transform = Transform2D(Vector2(scale, 0), Vector2(0, scale), vp * 0.5 - wc * scale)
+	_renderer.world_scale = scale
+	_renderer.queue_redraw()
+	_update_status()
+
+func _bounds() -> Array:
+	var mn := Vector2(1e30, 1e30)
+	var mx := Vector2(-1e30, -1e30)
+	for c: VivChunk in _runner.creature.chunks:
+		var r := c.radius + 4.0
+		mn = mn.min(c.draw_pos(_runner.clock.time_stacker) - Vector2(r, r))
+		mx = mx.max(c.draw_pos(_runner.clock.time_stacker) + Vector2(r, r))
+	return [mn, mx]
 
 func _update_status() -> void:
 	if _status == null:
@@ -164,8 +222,7 @@ func _update_status() -> void:
 		_status.text = "[color=#7f8794]No creature selected.[/color]"
 		return
 	var name := _current_path.get_file()
-	_status.text = "[b]%s[/b]  seed %d\n" % [name, _runner.seed]
-	_status.text += "chunks: %d    tick: %d    t_stack: %.2f\n" % [
-		_runner.creature.chunks.size(), _runner.clock.tick_count, _runner.clock.time_stacker]
-	_status.text += "hash: [color=#d7d52f]%s[/color]\n" % _runner.hash_state().substr(0, 24)
-	_status.text += "last respawn: %.1f ms" % _last_respawn_ms
+	_status.text = "[b]%s[/b]  seed %d    chunks %d    tick %d\n" % [
+		name, _runner.seed, _runner.creature.chunks.size(), _runner.clock.tick_count]
+	_status.text += "hash [color=#d7d52f]%s[/color]    last respawn %.1f ms" % [
+		_runner.hash_state().substr(0, 20), _last_respawn_ms]

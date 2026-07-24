@@ -79,6 +79,34 @@ func reload_and_respawn() -> float:
 func hash_state() -> String:
 	return VivHasher.hash_creature(creature)
 
+## Capture full instance state for A/B and deterministic reverse-replay (§4.4).
+func snapshot() -> Dictionary:
+	var chs := []
+	for c: VivChunk in creature.chunks:
+		chs.append([c.pos, c.last_pos, c.vel, c.grounded])
+	return {
+		"rng": creature.rng.state,
+		"tick": clock.tick_count,
+		"chunks": chs,
+		"extra": creature.capture_state(),
+	}
+
+func restore(s: Dictionary) -> void:
+	creature.rng.state = s["rng"]
+	clock.tick_count = s["tick"]
+	var chs: Array = s["chunks"]
+	for i in creature.chunks.size():
+		var c: VivChunk = creature.chunks[i]
+		var d: Array = chs[i]
+		c.pos = d[0]; c.last_pos = d[1]; c.vel = d[2]; c.grounded = d[3]
+	creature.restore_state(s["extra"])
+
+## Deterministic reverse: restore a snapshot and replay forward `back` fewer ticks than it
+## was taken-plus-elapsed. Caller supplies the snapshot and how many ticks to re-run.
+func replay_from(s: Dictionary, ticks: int) -> void:
+	restore(s)
+	step(ticks)
+
 ## Enforce §2: draw() must not mutate sim state. Snapshot the hash, draw into a stub
 ## context, and confirm the hash is unchanged. Returns true if pure.
 func assert_draw_pure(ctx: VivDrawContext) -> bool:

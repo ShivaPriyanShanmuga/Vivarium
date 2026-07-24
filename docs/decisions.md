@@ -230,6 +230,54 @@ Base `VivCreature.tick()` now calls `simulate(dt)`, so a pure-physics creature n
 | Terrain stops a falling chunk on the surface | ✅ (rests at −radius, speed 0) |
 | Swept collision prevents 1-tick tunneling at high speed | ✅ |
 
-Editor still loads the plugin with no script errors. Next: **Phase 3** (renderer — mesh
-submission, layer sort keys, low-res target + palette pass + point upscale, view modes,
-transport; shaded view visually comparable to the Phase 0 frames).
+Editor still loads the plugin with no script errors.
+
+---
+
+## Phase 3 — Renderer (done; some view modes deferred)
+
+**Render capability (VERIFIED):** this environment **cannot rasterize headless** (dummy
+RenderingDevice) but **renders fine windowed**. So visual verification runs windowed
+(`godot --path . --script res://test/render_creature.gd`) and saves PNGs to `test/out/`
+(git-ignored) for review; logic/geometry is tested headless.
+
+**Pieces built:**
+
+- `runtime/viv_draw_context.gd` — real geometry accumulation. `mesh(layer, verts, tris,
+  colors)` is THE primitive (per-vertex colors); `quad`, `strip` (flat tapered stroke),
+  `tube` (rounded, light-shaded tapered body), `ramp`, `light` are sugar. Named layers with
+  **integer sort keys** (`declare_layer`), submitted low→high — no depth buffer (§2).
+- `runtime/viv_palette_ramps.gd` — named `Gradient` ramps (`ctx.ramp`), defaults from the
+  Phase-0 sampled palette; body ramp = near-black → wine → brick-red (reference §5).
+- `addons/vivarium/render/viv_renderer.gd` — `Node2D`; submits layers via
+  `RenderingServer.canvas_item_add_triangle_array` under a world→viewport transform. View
+  modes: **shaded, wireframe** (edges + winding arrowheads), **chunks** (tension-colored),
+  **skeleton** (joints/flexes), **overdraw** (additive heatmap).
+- Low-res target + **point upscale**: harness renders to a small `SubViewport` and
+  `INTERPOLATE_NEAREST`-upscales; the editor uses a `SubViewportContainer`
+  (`stretch_shrink`, `TEXTURE_FILTER_NEAREST`). This is the lo-fi cohesion (§4.2).
+- `creatures/serpent.gd` — shaded exemplar: pinned-root tapered tentacle, outline layer
+  behind a shaded body layer. Rendered result: `docs/images/phase3_serpent_{shaded,wireframe}.png`.
+- Transport: `VivCreatureRunner.snapshot/restore/replay_from` + `VivCreature.capture_state/
+  restore_state` → deterministic reverse-replay; single-tick `step` already present.
+- Live viewport + view-mode selector wired into the editor tab (`viv_main_screen.gd`).
+
+**Deferred (honest gaps, revisit later):** the **palette-indices** and **vertex-IDs**
+(hover) view modes from §4.3 — vertex-IDs needs editor hover interactivity, palette-indices
+needs ramp-index tagging. Transport UI surfaces play/pause/step/mode; **tick-rate scrub and
+a reverse scrubber** are runner-capable but not yet in the UI (Phase 5/8). No dedicated
+posterize post-shader — the lo-fi look comes from low-res + palette ramps + point upscale.
+
+**Gotcha:** logical-operator results (`a and b`) infer as **Variant** under this project's
+strict warnings — annotate `var ok: bool = a and b`, never `:=`. (Same class of fix as the
+`min()`→`mini()` Variant issue.)
+
+**Acceptance — PASS.** Shaded view renders correctly and is visually in the family of the
+Phase-0 reference creature (tapered near-black→dark-red self-shaded body, lo-fi upscale on
+the cool test-room ground) — a subjective gate for the user to confirm. Headless
+`test/phase3_harness.gd`: interpolation endpoints/midpoint + store_last discipline ✅;
+integer layer sort ✅; generated geometry valid (66 tris, finite, indices in range, colors
+match, 0 degenerate) ✅; `draw()` non-mutating on a real mesh creature ✅; deterministic
+snapshot + reverse-replay ✅. Phases 1–2 harnesses still green (no regression). Editor loads
+clean. Next: **Phase 4** (two-bone IK, ground-seeking grip, step triggering, gait phase —
+quadruped over uneven terrain, foot slide < 0.5 px).

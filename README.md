@@ -55,6 +55,15 @@ creature in under 300 ms (measured ~5 ms).
 - **Phase 0** — reference extraction ✅
 - **Phase 1** — host + determinism/hot-reload harness ✅
 - **Phase 2** — simulation: PBD/Verlet, distance + flex constraints, swept-circle terrain ✅
-- **Phase 3** — renderer (mesh, layers, low-res + palette pass, view modes) — next
+- **Phase 3** — renderer: mesh/layers, low-res + point upscale, view modes, replay ✅
+- **Phase 4** — limbs & gaits (two-bone IK, grip, step triggering) — next
+
+Rendering is verified by saving PNGs (Godot can't rasterize headless in this env):
+
+```bash
+godot --path . --script res://test/render_creature.gd   # -> test/out/*.png
+```
+
+Sample shaded + wireframe renders live in [docs/images/](docs/images/).
 
 See [`docs/decisions.md`](docs/decisions.md) for the full phase log.
