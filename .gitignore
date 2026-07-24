@@ -1,0 +1,30 @@
+# Reference material — local design study only.
+# Do NOT commit the video, extracted frames, or transcript (see docs/decisions.md, Phase 0).
+ref/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs and scratch
+*.log
+tmp/
+scratch/
