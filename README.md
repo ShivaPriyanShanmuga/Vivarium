@@ -23,7 +23,7 @@ there is no export step; the tool is a viewer into your project.
 | `addons/vivarium/` | The editor plugin: host (discovery, file watcher, hot-reload runner) + UI shell. |
 | `creatures/` | Watched creature programs (GDScript). `test_blob.gd` is the Phase 1 exemplar. |
 | `test/` | Headless harnesses (`smoke.gd`, `phase1_harness.gd`). |
-| `docs/` | `ui-reference.md`, `decisions.md` (decisions + VERIFY log). |
+| `docs/` | `tutorial.md` (empty file → walker), `creature-api.md` (generated), `ui-reference.md`, `decisions.md`. |
 
 ## The creature contract (§2)
 
