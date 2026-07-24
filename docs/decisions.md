@@ -279,5 +279,46 @@ the cool test-room ground) — a subjective gate for the user to confirm. Headle
 integer layer sort ✅; generated geometry valid (66 tris, finite, indices in range, colors
 match, 0 degenerate) ✅; `draw()` non-mutating on a real mesh creature ✅; deterministic
 snapshot + reverse-replay ✅. Phases 1–2 harnesses still green (no regression). Editor loads
-clean. Next: **Phase 4** (two-bone IK, ground-seeking grip, step triggering, gait phase —
-quadruped over uneven terrain, foot slide < 0.5 px).
+clean.
+
+---
+
+## Phase 4 — Limbs and gaits (done)
+
+**Approach: kinematic phase-based gait** (deterministic, and it makes the §7.2 foot-slide
+metric ~0 by construction). A physics-coupled leg is a later refinement.
+
+- `runtime/viv_ik.gd` — two-bone IK (law of cosines), clamped to the reachable range so an
+  over/under-extended target never NaNs.
+- `runtime/viv_limb.gd` — a leg with STANCE (foot world-fixed → the body moves over it, zero
+  slide) / SWING (foot arcs to a ground-seeking grip ahead of the hip). A central gait cycle
+  in [0,1) + per-leg `phase` gives the pattern; `swing_frac` = 1 − duty factor. The swing
+  foot is clamped above the ground beneath it so it steps *over* bumps (no penetration).
+- `runtime/viv_terrain.gd` — `ground_y(x, from_y)` vertical raycast for grip selection and
+  body ride-height.
+- `creatures/quadruped.gd` — kinematic body rides `RIDE_HEIGHT` above terrain, advances at
+  `WALK_SPEED`, four legs in a trot (diagonal pairs). Overrides `tick()` to drive
+  kinematically (no solver); all chunks pinned; feet+body live in `chunks` so determinism
+  hashing + render interpolation cover the gait. `capture/restore_state` snapshot the cycle
+  + per-leg swing state. Render: `docs/images/phase4_gait.png`.
+
+**Gotchas:** a member named `_init` collides with the GDScript constructor → renamed
+`_started`. To read creature-specific members (`limbs`, `body`) in a harness, hold the
+creature as `Variant` and assign into typed locals (`var lm: VivLimb = q.limbs[i]`).
+
+**Acceptance — PASS** (`test/phase4_harness.gd`, quadruped over an uneven ground profile):
+
+| Check | Result |
+|---|---|
+| **Foot slide** (planted foot horizontal drift) | ✅ **0.000 px** (< 0.5) |
+| **No penetration** (foot below ground) | ✅ **0.000 px** (< 1.5) after swing-clamp |
+| **No hovering** (planted feet on the ground) | ✅ **0.000** |
+| Body follows terrain | ✅ err 3.31 (< 9) |
+| Crossed uneven terrain | ✅ advanced 1560 units |
+| Gait active | ✅ ≥ 52 steps per foot |
+| Determinism through the gait | ✅ |
+| IK exact when reachable / finite when overextended | ✅ |
+
+Visual: `docs/images/phase4_gait.png` — trot with knee-bending IK legs, body tilting over
+slopes. Phases 1–3 still green. Next: **Phase 5** (full UI) — note its acceptance is a
+user-approved side-by-side, and **Phase 6** (validators & metrics) is fully testable.

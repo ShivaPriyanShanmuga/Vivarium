@@ -56,7 +56,8 @@ creature in under 300 ms (measured ~5 ms).
 - **Phase 1** — host + determinism/hot-reload harness ✅
 - **Phase 2** — simulation: PBD/Verlet, distance + flex constraints, swept-circle terrain ✅
 - **Phase 3** — renderer: mesh/layers, low-res + point upscale, view modes, replay ✅
-- **Phase 4** — limbs & gaits (two-bone IK, grip, step triggering) — next
+- **Phase 4** — limbs & gaits: two-bone IK, phase-based gait, ground-seeking grips ✅
+- **Phase 5** — full UI (inspector, scenarios, terrain sketch) — next
 
 Rendering is verified by saving PNGs (Godot can't rasterize headless in this env):
 

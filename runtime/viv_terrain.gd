@@ -30,6 +30,19 @@ func add_floor(y: float, x0: float, x1: float) -> void:
 func add_pole(x: float, y0: float, y1: float) -> void:
 	add_segment(Vector2(x, y0), Vector2(x, y1))
 
+## Ground surface y directly under x, searching downward from `from_y` (+y is down).
+## Returns the highest surface at or below from_y, or INF if the ray hits nothing.
+## Used by legs (grip selection) and kinematic bodies to follow the ground (§4 gaits).
+func ground_y(x: float, from_y: float = -1.0e6) -> float:
+	var best := INF
+	var ray_from := Vector2(x, from_y)
+	var ray_to := Vector2(x, 1.0e6)
+	for i in size():
+		var hit = Geometry2D.segment_intersects_segment(ray_from, ray_to, seg_a[i], seg_b[i])
+		if hit is Vector2 and hit.y >= from_y and hit.y < best:
+			best = hit.y
+	return best
+
 ## Four walls of an axis-aligned box (chunks collide on the outside).
 func add_box(rect: Rect2) -> void:
 	var p := rect.position
