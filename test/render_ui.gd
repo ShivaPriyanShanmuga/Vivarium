@@ -10,9 +10,13 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var win := get_root()
-	win.size = Vector2i(1120, 700)
+	await process_frame
+	DisplayServer.window_set_size(Vector2i(1180, 740))
+	win.size = Vector2i(1180, 740)
 	var ms: Control = MainScreen.new()
 	win.add_child(ms)
+	ms.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ms.size = Vector2(1180, 740)
 	ms.set_active(true)
 	await process_frame
 	await process_frame

@@ -33,7 +33,7 @@ var _sub: SubViewport
 var _bg: ColorRect
 var _renderer: VivRenderer
 var _svc: SubViewportContainer
-var _code_overlay: Panel
+var _code_overlay: PanelContainer
 var _code_edit: TextEdit
 var _sketch_btn: CheckButton
 
@@ -81,50 +81,71 @@ func _default_floor() -> VivTerrain:
 # ------------------------------------------------------------------ UI
 
 func _build_ui() -> void:
+	theme = VivTheme.build()
 	var bg := ColorRect.new()
-	bg.color = VivPalette.UI_BG
+	bg.color = VivTheme.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
+	var pad := MarginContainer.new()
+	pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for m in ["left", "right", "top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + m, 6)
+	add_child(pad)
 	var outer := VBoxContainer.new()
-	outer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	outer.add_theme_constant_override("separation", 1)
-	add_child(outer)
+	outer.add_theme_constant_override("separation", 6)
+	pad.add_child(outer)
 
 	# --- top bar ---
+	var topcard := PanelContainer.new()
+	outer.add_child(topcard)
+	var topwrap := _pad(9, 5)
+	topcard.add_child(topwrap)
 	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
-	outer.add_child(top)
-	top.add_child(_dim_label(CREATURES_DIR))
+	top.add_theme_constant_override("separation", 6)
+	topwrap.add_child(top)
+	var brand := Label.new(); brand.text = "VIVARIUM"
+	brand.add_theme_color_override("font_color", VivTheme.ACCENT)
+	top.add_child(brand)
+	top.add_child(VSeparator.new())
 	_play_btn = CheckButton.new(); _play_btn.text = "Play"; top.add_child(_play_btn)
 	_add_button(top, "Step", _step_once)
 	_add_button(top, "Reverse", _reverse_once)
 	_add_button(top, "Reload", _reload_current)
+	top.add_child(VSeparator.new())
 	top.add_child(_dim_label("speed"))
 	_speed = HSlider.new(); _speed.min_value = 0.1; _speed.max_value = 3.0; _speed.step = 0.1
-	_speed.value = 1.0; _speed.custom_minimum_size = Vector2(90, 0); top.add_child(_speed)
+	_speed.value = 1.0; _speed.custom_minimum_size = Vector2(96, 0)
+	_speed.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(_speed)
+	top.add_child(VSeparator.new())
 	_mode_btn = OptionButton.new()
 	for n in ["Shaded", "Wireframe", "Chunks", "Skeleton", "Overdraw"]:
 		_mode_btn.add_item(n)
 	_mode_btn.item_selected.connect(func(i: int): if _renderer: _renderer.mode = i)
 	top.add_child(_mode_btn)
+	var spacer := Control.new(); spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(spacer)
+	top.add_child(_dim_label(CREATURES_DIR))
 	_add_button(top, "Code", _toggle_code)
 
 	# --- middle: rail | viewport | inspector ---
 	var mid := HBoxContainer.new()
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	mid.add_theme_constant_override("separation", 1)
+	mid.add_theme_constant_override("separation", 6)
 	outer.add_child(mid)
 
-	var rail := VBoxContainer.new()
-	rail.custom_minimum_size = Vector2(170, 0)
-	mid.add_child(rail)
-	rail.add_child(_header("CREATURES"))
+	var railcard := _card(184)
+	mid.add_child(railcard[0])
+	railcard[1].add_child(_section("Creatures"))
 	_list = ItemList.new()
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(_on_list_selected)
-	rail.add_child(_list)
+	railcard[1].add_child(_list)
 
+	var vpcard := PanelContainer.new()
+	vpcard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_child(vpcard)
 	_svc = SubViewportContainer.new()
 	_svc.stretch = true
 	_svc.stretch_shrink = 3
@@ -132,64 +153,73 @@ func _build_ui() -> void:
 	_svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_svc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_svc.gui_input.connect(_on_viewport_input)
-	mid.add_child(_svc)
+	vpcard.add_child(_svc)
 	_sub = SubViewport.new()
 	_sub.transparent_bg = false
 	_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_svc.add_child(_sub)
 	_bg = ColorRect.new()
-	_bg.color = VivPalette.ROOM_STONE_LIGHT.darkened(0.55)
+	_bg.color = Color("2a2d38")
 	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_sub.add_child(_bg)
 	_renderer = VivRenderer.new()
 	_renderer.context = _ctx
 	_sub.add_child(_renderer)
 
-	var insp := VBoxContainer.new()
-	insp.custom_minimum_size = Vector2(220, 0)
-	insp.add_theme_constant_override("separation", 4)
-	mid.add_child(insp)
-	insp.add_child(_header("TUNABLES"))
+	var inspcard := _card(240)
+	mid.add_child(inspcard[0])
+	var iv: VBoxContainer = inspcard[1]
+	iv.add_child(_section("Tunables"))
 	_tunables_box = VBoxContainer.new()
-	insp.add_child(_tunables_box)
-	insp.add_child(_header("METRICS"))
-	_metrics_lbl = _mono_label(); insp.add_child(_metrics_lbl)
-	var b1 := HBoxContainer.new(); insp.add_child(b1)
-	_add_button(b1, "Save scn", _save_scenario)
-	_add_button(b1, "Load scn", func(): _apply_scenario(_current_path); _refresh_list())
-	var b2 := HBoxContainer.new(); insp.add_child(b2)
+	iv.add_child(_tunables_box)
+	iv.add_child(_section("Metrics"))
+	_metrics_lbl = _mono_label(); iv.add_child(_metrics_lbl)
+	iv.add_child(_section("Scenario"))
+	var b1 := HBoxContainer.new(); iv.add_child(b1)
+	_add_button(b1, "Save", _save_scenario)
+	_add_button(b1, "Load", func(): _apply_scenario(_current_path); _refresh_list())
+	iv.add_child(_section("Compare  A / B"))
+	var b2 := HBoxContainer.new(); iv.add_child(b2)
 	_add_button(b2, "Snap A", func(): _snap("a"))
 	_add_button(b2, "Snap B", func(): _snap("b"))
-	_add_button(b2, "Compare", _compare_ab)
-	var b3 := HBoxContainer.new(); insp.add_child(b3)
-	_sketch_btn = CheckButton.new(); _sketch_btn.text = "Sketch terrain"; b3.add_child(_sketch_btn)
+	_add_button(b2, "Diff", _compare_ab)
+	iv.add_child(_section("Terrain"))
+	var b3 := HBoxContainer.new(); iv.add_child(b3)
+	_sketch_btn = CheckButton.new(); _sketch_btn.text = "Sketch"; b3.add_child(_sketch_btn)
 	_add_button(b3, "Clear", _clear_terrain)
 
 	# --- bottom: validators | console ---
 	var bottom := HBoxContainer.new()
-	bottom.custom_minimum_size = Vector2(0, 116)
-	bottom.add_theme_constant_override("separation", 1)
+	bottom.custom_minimum_size = Vector2(0, 132)
+	bottom.add_theme_constant_override("separation", 6)
 	outer.add_child(bottom)
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(_header("VALIDATORS"))
+	var valcard := _card(0)
+	valcard[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom.add_child(valcard[0])
+	valcard[1].add_child(_section("Validators"))
 	_validators_lbl = _mono_label(); _validators_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(_validators_lbl); bottom.add_child(vbox)
-	var cbox := VBoxContainer.new()
-	cbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cbox.add_child(_header("CONSOLE"))
+	valcard[1].add_child(_validators_lbl)
+	var concard := _card(0)
+	concard[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom.add_child(concard[0])
+	concard[1].add_child(_section("Console"))
 	_console = _mono_label(); _console.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_console.scroll_active = true; cbox.add_child(_console); bottom.add_child(cbox)
+	_console.scroll_active = true
+	concard[1].add_child(_console)
 
 	# --- code overlay (hidden) ---
-	_code_overlay = Panel.new()
+	_code_overlay = PanelContainer.new()
 	_code_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_code_overlay.visible = false
 	add_child(_code_overlay)
-	var cov := VBoxContainer.new(); cov.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_code_overlay.add_child(cov)
+	var covpad := _pad(10, 8); _code_overlay.add_child(covpad)
+	var cov := VBoxContainer.new(); covpad.add_child(cov)
 	var cbar := HBoxContainer.new(); cov.add_child(cbar)
-	cbar.add_child(_dim_label("CODE  (Tab to close)"))
+	var ctitle := Label.new(); ctitle.text = "CODE"
+	ctitle.add_theme_color_override("font_color", VivTheme.ACCENT); cbar.add_child(ctitle)
+	cbar.add_child(_dim_label("Tab to close"))
+	var cspacer := Control.new(); cspacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cbar.add_child(cspacer)
 	_add_button(cbar, "Apply + reload", _apply_code)
 	_code_edit = TextEdit.new()
 	_code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -197,22 +227,43 @@ func _build_ui() -> void:
 
 	_log("Vivarium ready. Select a creature; press Play.")
 
-func _header(text: String) -> Label:
-	var l := Label.new(); l.text = text
-	l.add_theme_color_override("font_color", VivPalette.UI_ACCENT)
+func _pad(h: int = 8, v: int = 6) -> MarginContainer:
+	var mc := MarginContainer.new()
+	mc.add_theme_constant_override("margin_left", h)
+	mc.add_theme_constant_override("margin_right", h)
+	mc.add_theme_constant_override("margin_top", v)
+	mc.add_theme_constant_override("margin_bottom", v)
+	return mc
+
+func _card(minw: int = 0) -> Array:
+	var p := PanelContainer.new()
+	if minw > 0:
+		p.custom_minimum_size = Vector2(minw, 0)
+	var m := _pad(9, 8)
+	p.add_child(m)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	m.add_child(v)
+	return [p, v]
+
+func _section(title: String) -> Label:
+	var l := Label.new()
+	l.text = title.to_upper()
+	l.add_theme_color_override("font_color", VivTheme.TEXT_DIM)
+	l.add_theme_font_size_override("font_size", 10)
 	return l
 
 func _dim_label(text: String) -> Label:
 	var l := Label.new(); l.text = text
-	l.add_theme_color_override("font_color", VivPalette.UI_TEXT_DIM)
+	l.add_theme_color_override("font_color", VivTheme.TEXT_DIM)
 	return l
 
 func _mono_label() -> RichTextLabel:
 	var r := RichTextLabel.new()
 	r.bbcode_enabled = true
 	r.fit_content = true
-	r.add_theme_color_override("default_color", VivPalette.UI_TEXT)
-	r.custom_minimum_size = Vector2(0, 60)
+	r.add_theme_color_override("default_color", VivTheme.TEXT)
+	r.custom_minimum_size = Vector2(0, 54)
 	return r
 
 func _add_button(parent: Control, text: String, cb: Callable) -> void:

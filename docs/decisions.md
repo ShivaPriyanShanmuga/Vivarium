@@ -415,10 +415,23 @@ screen and drives every control's logic (select/play/step/reverse/snap A-B/scena
 code/reload) — PASS, no script errors; and a windowed layout render. `run_tests.{sh,ps1}`
 run all 7 phase harnesses + ui_smoke → ALL PASS. Editor loads clean.
 
+### UI theme (2026-07-24, user feedback)
+
+First pass looked amateur (raw Godot controls + a few color overrides). Replaced with a
+proper **`VivTheme`** (`addons/vivarium/ui/viv_theme.gd`): a code-built dark editor Theme —
+StyleBoxFlat for panels/buttons (normal/hover/pressed/focus)/inputs/lists, styled sliders
+with generated circular grabber textures, a blue selection accent, 1px borders, consistent
+padding — applied to the workspace root so all controls inherit it. The layout is re-paneled
+into `PanelContainer` cards with `MarginContainer` padding and dim uppercase section headers.
+This supersedes the raw "Aseprite-adjacent" first cut toward a polished Godot-editor/Unity
+flavour (still dark/flat/dense, just properly themed). Rendered: `docs/images/phase5_ui_layout.png`.
+(Note: the render harness must force window size + `set_anchors_and_offsets_preset` so the
+panel fills; the real editor sizes the main-screen tab itself.)
+
 ## Still pending (needs the user)
 
-- **Phase 5 sign-off:** the layout is Aseprite-adjacent per the agreed fallback, but the
-  **user-approved side-by-side vs the Phase-0 reference frames** is still your call.
+- **Phase 5 sign-off:** the polished editor theme is in; the **user-approved side-by-side vs
+  the Phase-0 reference frames** is still your call.
 - **Phase 7 LLM/VLM critique loop** (§6.3–6.4) — needs API keys, set up together.
 - **Phase 8 polish**; deferred silhouette-IoU metric + palette-index/vertex-id view modes.
 - **Phase 7 (agent):** the LLM/VLM critique loop (§6.3–6.4), exemplar-library packaging, edit
