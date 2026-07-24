@@ -90,5 +90,24 @@ palette: `docs/ui-reference.md`. Sampling scripts: `scratchpad/sample_palette.py
 - Shipping: near-black silhouettes over one region hue (cold murk `#24241d`; warm peach
   `#f0a672` / brick `#5c272a`), very high contrast, tiny saturated accents.
 
-**Phase 0 status:** reference written, palette sampled, gaps marked. Awaiting user review
-(acceptance criterion 0.7). Open questions for the user are in `docs/ui-reference.md` §10.
+**Phase 0 status:** reference written, palette sampled, gaps marked. Open questions in
+`docs/ui-reference.md` §10.
+
+### User decisions (2026-07-23)
+
+- **Engine / host:** **Godot 4**, creature code in **GDScript**, **GDExtension held in
+  reserve for the solver** (i.e. drop to native only if the Verlet/constraint solver needs
+  the performance). → Host adapter is the Godot path from §3: an EditorPlugin/SubViewport
+  viewer into the user's project. GDScript hot-reload is native.
+- **IDE chrome (§5 `[GAP]`):** **Aseprite-adjacent fallback** — dark neutral greys, 1px
+  hard borders, no rounded corners/shadows/gradients, dense small type, keyboard-first.
+  Mock up before building the Phase 5 UI.
+
+### Phase 1 — open items still to confirm with user
+
+- Where the creature **source directory** lives inside their repo (the watched path).
+- Exact **Godot 4.x** version to target (VERIFY current stable + EditorPlugin/SubViewport
+  APIs against live docs before writing host code).
+- Whether Vivarium is a **Godot editor main-screen plugin** (custom workspace tab inside
+  the Godot editor) vs a **standalone Godot app** that watches the project — leaning
+  editor-plugin per §3, to confirm.
