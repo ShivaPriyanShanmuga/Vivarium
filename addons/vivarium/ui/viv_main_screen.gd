@@ -28,6 +28,7 @@ var _current_path := ""
 var _active := false
 var _poll_accum := 0.0
 var _last_respawn_ms := 0.0
+var _validator_summary := "clean"
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -204,6 +205,9 @@ func _render_frame() -> void:
 	_renderer.transform = Transform2D(Vector2(scale, 0), Vector2(0, scale), vp * 0.5 - wc * scale)
 	_renderer.world_scale = scale
 	_renderer.queue_redraw()
+	# Geometry validators run every tick in the editor (§7.1) — surface a compact summary.
+	_validator_summary = VivValidators.summarize(
+		VivValidators.validate(_runner.creature.chunks, _ctx))
 	_update_status()
 
 func _bounds() -> Array:
@@ -224,5 +228,8 @@ func _update_status() -> void:
 	var name := _current_path.get_file()
 	_status.text = "[b]%s[/b]  seed %d    chunks %d    tick %d\n" % [
 		name, _runner.seed, _runner.creature.chunks.size(), _runner.clock.tick_count]
-	_status.text += "hash [color=#d7d52f]%s[/color]    last respawn %.1f ms" % [
+	_status.text += "hash [color=#d7d52f]%s[/color]    last respawn %.1f ms\n" % [
 		_runner.hash_state().substr(0, 20), _last_respawn_ms]
+	var clean := _validator_summary == "clean"
+	var vcol := "#7fb069" if clean else "#ff6b57"
+	_status.text += "validators: [color=%s]%s[/color]" % [vcol, _validator_summary]

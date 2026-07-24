@@ -320,5 +320,33 @@ creature as `Variant` and assign into typed locals (`var lm: VivLimb = q.limbs[i
 | IK exact when reachable / finite when overextended | ✅ |
 
 Visual: `docs/images/phase4_gait.png` — trot with knee-bending IK legs, body tilting over
-slopes. Phases 1–3 still green. Next: **Phase 5** (full UI) — note its acceptance is a
-user-approved side-by-side, and **Phase 6** (validators & metrics) is fully testable.
+slopes. Phases 1–3 still green.
+
+---
+
+## Phase 6 — Validators and metrics (done, before the full Phase 5 UI)
+
+**Order note:** Phase 6 was built before completing Phase 5. Phase 5's acceptance is a
+*user-approved* visual side-by-side (can't be met unattended); Phase 6 is fully testable and
+is the gate/infrastructure the Phase 7 agent needs. Phase 5's UI substance follows.
+
+- `runtime/viv_validators.gd` (§7.1) — geometry validators over a draw context (+chunks),
+  each finding localized `{kind, layer, index, detail}`: `nan_vertex`, `winding` (mixed
+  within a layer), `degenerate` (zero-area), `index_count`/`index_range`, `bad_color`
+  (outside [0,1]/non-finite), `detached` (vertex far from every chunk), `budget` (over a
+  vertex ceiling). `summarize()` for a compact UI line. The `draw()`-mutation assertion
+  (§7.1) is `VivCreatureRunner.assert_draw_pure`.
+- `runtime/viv_metrics.gd` (§7.2) — motion metrics over recorded series: `foot_slide`,
+  `duty_factor`, `step_count`, `stride_frequency`, `stride_length`, `com_oscillation`
+  (moving-average detrend), `envelope`. (Silhouette IoU + contact-phase-timing deferred —
+  IoU needs rendered vs reference masks.)
+- Wired a live validator summary into the editor status line (green "clean" / red counts).
+
+**Acceptance — PASS** (`test/phase6_harness.gd`): the clean serpent produces **zero**
+findings (the tube/strip generator winds consistently — no false positives); every injected
+defect is **caught and localized** — NaN@body:2, mixed winding, detached@b:2, out-of-range
+index, degenerate, bad color, over-budget; `draw()` mutation detected (clean pure ✓, mutating
+creature caught ✓); metrics compute on a real gait (foot slide 0.000, duty 0.64, 19 steps,
+0.84 steps/s, stride 30.0, COM bob finite). All prior harnesses still green; editor clean.
+Next: **Phase 5** UI substance (inspector tunables, scenarios, terrain sketch, multi-instance),
+then **Phase 7** (agent) and **Phase 8** (polish).
