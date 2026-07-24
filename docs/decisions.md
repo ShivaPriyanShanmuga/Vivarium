@@ -348,5 +348,41 @@ defect is **caught and localized** — NaN@body:2, mixed winding, detached@b:2, 
 index, degenerate, bad color, over-budget; `draw()` mutation detected (clean pure ✓, mutating
 creature caught ✓); metrics compute on a real gait (foot slide 0.000, duty 0.64, 19 steps,
 0.84 steps/s, stride 30.0, COM bob finite). All prior harnesses still green; editor clean.
-Next: **Phase 5** UI substance (inspector tunables, scenarios, terrain sketch, multi-instance),
-then **Phase 7** (agent) and **Phase 8** (polish).
+
+---
+
+## Phase 7 (part 1) — Agent tool surface (done; LLM loop deferred)
+
+The deterministic operations the AI (or a human) drives the loop with — built and tested
+without an LLM. The critique loop (§6.3: VLM contact-sheet critique) is **deferred**: it
+needs API keys and is best validated with the user watching, and per policy agent wiring
+should be set up with the user, not unattended overnight.
+
+- `addons/vivarium/agent/viv_tools.gd` (§6.2): `read_creature`, `write_creature` (returns a
+  review **diff**, writes nothing until `accept_write`/`discard_write` — §6 never writes
+  project files without an accepted diff), `compile_creature` (cheapest gate, §6.3),
+  `run_scenario` → run_id (records series), `validate` (VivValidators), `measure`
+  (VivMetrics), `diff_runs` (metric deltas), `snapshot_run`/`restore_run`, `run_hash`.
+- `docs/creature-api.md` — **generated** from the runtime types by `tools/gen_api.py`
+  (§6.1, §11): class docs + public signatures for all 18 runtime/host/agent classes, so the
+  agent's context can't go stale. Re-run `python tools/gen_api.py .` to regenerate.
+
+**Acceptance — PASS** (`test/phase7_harness.gd`): staged write touches nothing until accept;
+accept writes; a change yields a hunk diff; discard reverts; compile gate accepts good /
+rejects broken; run→validate(clean)→measure (foot slide 0.000, moved 455); determinism
+through the surface; `diff_runs` surfaces a +260 distance delta. All prior harnesses green.
+
+---
+
+## Not yet done (needs the user)
+
+- **Phase 5 (full UI):** the loop, live viewport, view modes, transport basics, and the
+  validator readout exist in the editor tab, but the §5 layout polish (inspector with live
+  tunables, terrain sketch tool, saved scenarios, multi-instance herd, A/B panel) and the
+  **user-approved side-by-side** acceptance remain.
+- **Phase 7 (agent):** the LLM/VLM critique loop (§6.3–6.4), exemplar-library packaging, edit
+  log UI, and end-to-end acceptance (IoU > 0.75 / contact timing within 8% unaided).
+- **Phase 8 (polish):** snapshot A/B UI, replay scrubbing UI, perf budgets surfaced,
+  templates, the empty-file→quadruped tutorial, honest-limits doc.
+- **Deferred metrics/views:** silhouette IoU + contact-phase-timing (§7.2); palette-index &
+  vertex-id view modes (§4.3).

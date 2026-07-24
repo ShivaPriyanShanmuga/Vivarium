@@ -58,11 +58,18 @@ creature in under 300 ms (measured ~5 ms).
 - **Phase 3** — renderer: mesh/layers, low-res + point upscale, view modes, replay ✅
 - **Phase 4** — limbs & gaits: two-bone IK, phase-based gait, ground-seeking grips ✅
 - **Phase 6** — validators (§7.1) + motion metrics (§7.2), caught-and-localized ✅
-- **Phase 5** — full UI (inspector, scenarios, terrain sketch) — in progress
-- **Phase 7** — the AI agent — pending
+- **Phase 7 (tool surface)** — agent operations: read/write+diff, run/validate/measure, diff_runs ✅
+- **Phase 5** — full UI polish (inspector, scenarios, terrain sketch) — pending user
+- **Phase 7 (LLM loop)** + **Phase 8** (polish) — pending
 
-_(Phase 6 was done before finishing Phase 5: it's fully testable, while Phase 5's
-acceptance is a user-approved visual side-by-side.)_
+_(Phases 5's visual approval and 7's LLM critique loop are best done with the user; the
+verifiable substance of both is in place. See [docs/decisions.md](docs/decisions.md).)_
+
+The agent's context reference is generated from the runtime types:
+
+```bash
+python tools/gen_api.py .    # -> docs/creature-api.md
+```
 
 Rendering is verified by saving PNGs (Godot can't rasterize headless in this env):
 
