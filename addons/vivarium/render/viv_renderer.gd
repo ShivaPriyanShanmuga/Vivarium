@@ -19,6 +19,7 @@ var world_scale: float = 1.0   # for sizing debug strokes in world units
 func _draw() -> void:
 	if mode != Mode.OVERDRAW and material != null:
 		material = null  # drop the additive material used by overdraw
+	_draw_terrain()
 	if mode == Mode.OVERDRAW:
 		_draw_overdraw()
 		return
@@ -29,6 +30,14 @@ func _draw() -> void:
 		Mode.WIREFRAME: _draw_wireframe()
 		Mode.CHUNKS: _draw_chunks()
 		Mode.SKELETON: _draw_skeleton()
+
+func _draw_terrain() -> void:
+	if creature == null or creature.world == null or creature.world.terrain == null:
+		return
+	var terr: VivTerrain = creature.world.terrain
+	var w := _pen() * 1.5
+	for i in terr.size():
+		draw_line(terr.seg_a[i], terr.seg_b[i], Color("2b2431"), w)
 
 func _draw_shaded(dim: bool) -> void:
 	if context == null:

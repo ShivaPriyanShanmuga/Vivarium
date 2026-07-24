@@ -395,10 +395,32 @@ and **persists across respawn**; scenario save→load round-trips gravity/terrai
 creature; a 5-instance herd is finite, **varies per seed**, and is **deterministic per seed**.
 All 7 harnesses green; editor clean.
 
+## Phase 5 (UI layout) — done (the full §5 workspace)
+
+`viv_main_screen.gd` now implements the full §5 layout, rendered to
+`docs/images/phase5_ui_layout.png`:
+
+- **Top bar:** creatures path, Play / Step / **Reverse** (deterministic replay from the
+  reverse-history ring) / Reload, **tick-rate scrub** (0.1×–3×), view-mode dropdown, Code.
+- **Left rail:** creature list. **Centre:** the dominant low-res + point-upscale viewport;
+  the renderer now also draws the terrain line.
+- **Right inspector:** live tunable sliders + a **metrics scorecard** (§7.2, from rolling
+  recorded series) + Save/Load scenario + **A/B snapshot compare** + **terrain-sketch**
+  toggle (click the viewport to lay ground points) + Clear.
+- **Bottom split:** VALIDATORS (live §7.1 summary + hash) | CONSOLE log.
+- **Code overlay:** full-screen editor toggled by **Tab**, with Apply+reload.
+
+Verified by a headless **UI smoke test** (`test/ui_smoke.gd`) that instantiates the whole
+screen and drives every control's logic (select/play/step/reverse/snap A-B/scenario/sketch/
+code/reload) — PASS, no script errors; and a windowed layout render. `run_tests.{sh,ps1}`
+run all 7 phase harnesses + ui_smoke → ALL PASS. Editor loads clean.
+
 ## Still pending (needs the user)
 
-- **Phase 5 remainder:** full §5 layout polish, terrain-sketch drawing tool, A/B snapshot
-  panel, and the **user-approved side-by-side** acceptance against the reference frames.
+- **Phase 5 sign-off:** the layout is Aseprite-adjacent per the agreed fallback, but the
+  **user-approved side-by-side vs the Phase-0 reference frames** is still your call.
+- **Phase 7 LLM/VLM critique loop** (§6.3–6.4) — needs API keys, set up together.
+- **Phase 8 polish**; deferred silhouette-IoU metric + palette-index/vertex-id view modes.
 - **Phase 7 (agent):** the LLM/VLM critique loop (§6.3–6.4), exemplar-library packaging, edit
   log UI, and end-to-end acceptance (IoU > 0.75 / contact timing within 8% unaided).
 - **Phase 8 (polish):** snapshot A/B UI, replay scrubbing UI, perf budgets surfaced,

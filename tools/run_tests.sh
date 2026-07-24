@@ -14,6 +14,10 @@ for h in phase1 phase2 phase3 phase4 phase5 phase6 phase7; do
   echo "${res:-<no result — see full output>}"
   echo "$res" | grep -q "PASS" || fails=$((fails + 1))
 done
+printf "  %-8s " "ui_smoke"
+res=$("$GODOT" --headless --path . --script res://test/ui_smoke.gd 2>&1 | grep -E "UI_SMOKE_RESULT")
+echo "${res:-<no result>}"
+echo "$res" | grep -q "PASS" || fails=$((fails + 1))
 echo "--------------------------------------"
 if [ "$fails" -eq 0 ]; then echo "ALL PASS"; else echo "$fails harness(es) FAILED"; fi
 exit "$fails"

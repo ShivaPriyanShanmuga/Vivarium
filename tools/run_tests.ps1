@@ -29,6 +29,10 @@ foreach ($h in @("phase1", "phase2", "phase3", "phase4", "phase5", "phase6", "ph
     "{0,-8} exit={1}  {2}" -f $h, $r.Code, ("$line").Trim()
     if ($r.Code -ne 0) { $fails++ }
 }
+$r = Invoke-Godot @("--headless", "--path", ".", "--script", "res://test/ui_smoke.gd")
+$line = ($r.Out -split "`n" | Select-String "UI_SMOKE_RESULT" | Select-Object -First 1)
+"{0,-8} exit={1}  {2}" -f "ui_smoke", $r.Code, ("$line").Trim()
+if ($r.Code -ne 0) { $fails++ }
 Write-Host "--------------------------------------"
 if ($fails -eq 0) { Write-Host "ALL PASS" } else { Write-Host "$fails harness(es) FAILED" }
 exit $fails
