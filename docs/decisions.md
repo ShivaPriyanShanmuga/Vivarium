@@ -181,6 +181,55 @@ Target engine **4.7.stable.official** (installed, on PATH). Confirmed by running
 | Watcher detects changed file | ✅ |
 | Registry discovers creatures / rejects non-creatures | ✅ |
 
-Editor loads the plugin with no script errors (`--headless --editor`). Next: **Phase 2**
-(Verlet + distance/flex constraints + swept-circle terrain; settle a dropped creature over
-10,000 ticks without exploding).
+Editor loads the plugin with no script errors (`--headless --editor`).
+
+---
+
+## Phase 2 — Simulation (done)
+
+**Approach:** Position-Based Dynamics (Verlet family), in `runtime/viv_solver.gd`:
+
+1. **integrate** — semi-implicit Euler; momentum carried in `chunk.vel`, air drag `(1-drag)`.
+2. **iterate** `world.solver_iterations` (default 8) times: distance constraints
+   (`VivConnection` rigid/spring/elastic), flex constraints (`VivFlex`), swept-circle
+   terrain (`VivTerrain`).
+3. **reconcile_velocity** — `vel = (pos - last_pos)/dt`. This is what makes settling
+   stable: constraint/terrain position corrections fold back into velocity, so a resting
+   chunk stops moving and its velocity decays to zero. No explosion, no jitter.
+
+`last_pos` (set by the host before `tick()`) doubles as the Verlet previous position and
+the render-interpolation anchor — tick/render separation and the solver share one field.
+Base `VivCreature.tick()` now calls `simulate(dt)`, so a pure-physics creature needs no
+`tick()` override; behaviour creatures override and call `simulate()` after their logic.
+
+**Primitives / design choices:**
+
+- **Terrain = segment soup** (`seg_a`/`seg_b` parallel `PackedVector2Array`), not a
+  heightfield — expresses gaps, ceilings, poles (§4.5). Collision is two-sided
+  closest-point (`Geometry2D.get_closest_point_to_segment`) plus a swept crossing test
+  (`Geometry2D.segment_intersects_segment`) so fast chunks can't tunnel thin geometry.
+- **Position-based friction:** on contact, cancel the tangential slide since `last_pos`
+  scaled by `terrain.friction` — gives Coulomb-ish grip and kills resting drift.
+- **Flex = angle-as-distance:** the a-c rest distance is derived from current limb lengths
+  and the target angle via the law of cosines, so it holds the ANGLE at any limb length.
+  **Known limit:** near the straight singularity (target = π) the soft constraint stalls a
+  few degrees short (converges to ~172° for a 180° target); non-singular targets converge
+  exactly. Fine for "resists folding"; noted so it isn't mistaken for a bug.
+- **PBD gotcha:** untyped `for x in array` makes `x.member` a `Variant` and breaks `:=`
+  type inference across the solver → use **typed loop vars** `for c: VivChunk in chunks:`.
+
+**Acceptance — PASS** (`godot --headless --path . --script res://test/phase2_harness.gd`):
+
+| Check | Result |
+|---|---|
+| **Rigid triangle dropped on floor, 10,000 ticks** | ✅ finite; max speed **0.005** (<0.5, settled); COM drift **0.38** over last 3000 ticks (<1.5); rests on floor; shape error **0.000** (rigid held) |
+| Determinism through the solver (seed 5 ×2000) | ✅ |
+| Rigid distance constraint → rest length | ✅ (10.0000) |
+| Elastic resists stretch only (free to compress) | ✅ |
+| Flex converges to target angle (non-singular) | ✅ |
+| Terrain stops a falling chunk on the surface | ✅ (rests at −radius, speed 0) |
+| Swept collision prevents 1-tick tunneling at high speed | ✅ |
+
+Editor still loads the plugin with no script errors. Next: **Phase 3** (renderer — mesh
+submission, layer sort keys, low-res target + palette pass + point upscale, view modes,
+transport; shaded view visually comparable to the Phase 0 frames).

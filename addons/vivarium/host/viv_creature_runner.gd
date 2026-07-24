@@ -14,6 +14,10 @@ var world: VivWorld
 var clock := VivSimClock.new()
 var seed := 0
 
+## Environment injected into the world on spawn (set by the host / scenario). Null = free space.
+var terrain: VivTerrain = null
+var gravity := Vector2(0.0, 40.0)
+
 ## Load (or reload) the creature script from disk. `fresh` compiles a standalone GDScript
 ## from the file text, bypassing Godot's ResourceLoader AND GDScript compile caches so an
 ## on-disk edit actually takes effect (CACHE_MODE_REPLACE alone returns the cached compile).
@@ -39,7 +43,8 @@ func spawn(seed_value: int) -> bool:
 	if creature_script == null:
 		return false
 	seed = seed_value
-	world = VivWorld.new(seed_value)
+	world = VivWorld.new(seed_value, gravity)
+	world.terrain = terrain
 	var inst = creature_script.new()
 	if not (inst is VivCreature):
 		push_error("Vivarium: %s is not a VivCreature" % creature_script_path)

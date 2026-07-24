@@ -19,6 +19,8 @@ extends RefCounted
 var world: VivWorld
 var rng: VivRng
 var chunks: Array[VivChunk] = []
+var connections: Array[VivConnection] = []
+var flexes: Array[VivFlex] = []
 
 var _seed: int = 0
 var _initialized := false
@@ -29,6 +31,8 @@ func setup(w: VivWorld, seed_value: int) -> void:
 	_seed = seed_value
 	rng = VivRng.new(seed_value)
 	chunks.clear()
+	connections.clear()
+	flexes.clear()
 	init(w)
 	# Establish last == cur so the first interpolated frame is stable.
 	store_last_positions()
@@ -39,8 +43,11 @@ func setup(w: VivWorld, seed_value: int) -> void:
 func init(_w: VivWorld) -> void:
 	pass
 
-func tick(_dt: float) -> void:
-	pass
+## Default tick IS the physics step. Creatures with behaviour override tick(), do their
+## behaviour (limb targeting, etc.), then call simulate(dt) — or super() — to advance the
+## body. A pure-physics creature needs no tick() override at all.
+func tick(dt: float) -> void:
+	simulate(dt)
 
 func draw(_ctx: VivDrawContext, _time_stacker: float) -> void:
 	pass
@@ -55,6 +62,30 @@ func add_chunk(pos: Vector2, radius: float = 1.0, mass: float = 1.0, drag: float
 	var c := VivChunk.new(pos, radius, mass, drag)
 	chunks.append(c)
 	return c
+
+## Connect two chunks. rest_length < 0 uses the current distance between them.
+func add_connection(a: VivChunk, b: VivChunk, type: int = VivConnection.Type.RIGID,
+		stiffness: float = 1.0, rest_length: float = -1.0) -> VivConnection:
+	var rest := rest_length if rest_length >= 0.0 else a.pos.distance_to(b.pos)
+	var con := VivConnection.new(a, b, rest, type, stiffness)
+	connections.append(con)
+	return con
+
+## Add a flex (anti-fold) constraint over a-b-c. target_angle < 0 uses the current angle.
+func add_flex(a: VivChunk, b: VivChunk, c: VivChunk, target_angle: float = -1.0,
+		stiffness: float = 0.5) -> VivFlex:
+	var target := target_angle
+	if target < 0.0:
+		target = (a.pos - b.pos).angle_to(c.pos - b.pos)
+		target = absf(target)
+	var fx := VivFlex.new(a, b, c, target, stiffness)
+	flexes.append(fx)
+	return fx
+
+## Advance the body one fixed step through the solver (§2 Phase 2).
+func simulate(dt: float) -> void:
+	var iters := world.solver_iterations if world != null else 8
+	VivSolver.step(self, world, dt, iters)
 
 ## Copy pos -> last_pos for every chunk. The host calls this immediately BEFORE tick(),
 ## so draw() can interpolate between the previous and current tick (§2).

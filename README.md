@@ -54,6 +54,7 @@ creature in under 300 ms (measured ~5 ms).
 
 - **Phase 0** — reference extraction ✅
 - **Phase 1** — host + determinism/hot-reload harness ✅
-- **Phase 2** — simulation (Verlet, constraints, swept-circle terrain) — next
+- **Phase 2** — simulation: PBD/Verlet, distance + flex constraints, swept-circle terrain ✅
+- **Phase 3** — renderer (mesh, layers, low-res + palette pass, view modes) — next
 
 See [`docs/decisions.md`](docs/decisions.md) for the full phase log.
